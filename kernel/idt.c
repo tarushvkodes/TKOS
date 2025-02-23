@@ -30,9 +30,8 @@ const char* exception_messages[] = {
 
 extern void write_string(const char*);
 
-void isr_handler(void) {
-    write_string("Interrupt received!\n");
-}
+// Removed duplicate ISR stub definitions and isr_handler implementation from this file.
+// The ISR stubs are now exclusively implemented in kernel/isr.asm and the ISR handler in kernel.c.
 
 void idt_set_gate(uint8_t num, uint32_t handler, uint16_t selector, uint8_t flags) {
     idt[num].offset_low = handler & 0xFFFF;

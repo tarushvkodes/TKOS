@@ -55,13 +55,13 @@ ISR_STUB(18)  // Machine check
 ISR_STUB(19)  // SIMD floating-point
 // ... etc up to 31
 
-// External declarations of our ISR handlers
+// Removed duplicate ISR stub definitions and inline implementations from isr.h. Retained only declarations.
 #ifndef ISR_H
 #define ISR_H
 
 #include <stdint.h>
 
-// Interrupt handler function type
+// Structure representing CPU registers pushed by an ISR
 typedef struct {
     uint32_t ds;
     uint32_t edi, esi, ebp, esp, ebx, edx, ecx, eax;
@@ -69,59 +69,47 @@ typedef struct {
     uint32_t eip, cs, eflags, useresp, ss;
 } registers_t;
 
-// Exception messages for better debugging
-static const char *exception_messages[] = {
-    "Division By Zero",
-    "Debug",
-    "Non Maskable Interrupt",
-    "Breakpoint",
-    "Overflow",
-    "Bound Range Exceeded",
-    "Invalid Opcode",
-    "Device Not Available",
-    "Double Fault",
-    "Coprocessor Segment Overrun",
-    "Invalid TSS",
-    "Segment Not Present",
-    "Stack-Segment Fault",
-    "General Protection Fault",
-    "Page Fault",
-    "Reserved",
-    "x87 FPU Error",
-    "Alignment Check",
-    "Machine Check",
-    "SIMD Floating-Point"
-};
+// Exception messages for debugging (defined in isr_impl or similar)
+extern const char *exception_messages[];
 
-// Function declarations
+// ISR handler function which gets called by the common ISR stub
 void isr_handler(registers_t *regs);
-typedef void (*isr_t)(registers_t*);
-void register_interrupt_handler(uint8_t n, isr_t handler);
 
-// Modified ISR_STUB macro with static inline to ensure internal linkage
-#undef ISR_STUB
-#define ISR_STUB(isr_number) \
-    static inline void isr##isr_number(void) { \
-        /* ISR stub code for interrupt isr_number */ \
-    }
+// Registers a custom interrupt handler for interrupt number n
+void register_interrupt_handler(uint8_t n, void (*handler)(registers_t*));
 
-// Modified isr_common_stub definition to be static inline
-#undef isr_common_stub
-static inline __attribute__((naked)) void isr_common_stub(void) {
-    /* Common ISR handler code */
-}
-
-// ISR stubs
-#define ISR_STUB(num) extern void isr##num(void)
-
-// Define ISR stubs 0-31
-ISR_STUB(0);  ISR_STUB(1);  ISR_STUB(2);  ISR_STUB(3);
-ISR_STUB(4);  ISR_STUB(5);  ISR_STUB(6);  ISR_STUB(7);
-ISR_STUB(8);  ISR_STUB(9);  ISR_STUB(10); ISR_STUB(11);
-ISR_STUB(12); ISR_STUB(13); ISR_STUB(14); ISR_STUB(15);
-ISR_STUB(16); ISR_STUB(17); ISR_STUB(18); ISR_STUB(19);
-ISR_STUB(20); ISR_STUB(21); ISR_STUB(22); ISR_STUB(23);
-ISR_STUB(24); ISR_STUB(25); ISR_STUB(26); ISR_STUB(27);
-ISR_STUB(28); ISR_STUB(29); ISR_STUB(30); ISR_STUB(31);
+// Declarations for ISR stubs 0-31 (implemented in isr.asm)
+extern void isr0(void);
+extern void isr1(void);
+extern void isr2(void);
+extern void isr3(void);
+extern void isr4(void);
+extern void isr5(void);
+extern void isr6(void);
+extern void isr7(void);
+extern void isr8(void);
+extern void isr9(void);
+extern void isr10(void);
+extern void isr11(void);
+extern void isr12(void);
+extern void isr13(void);
+extern void isr14(void);
+extern void isr15(void);
+extern void isr16(void);
+extern void isr17(void);
+extern void isr18(void);
+extern void isr19(void);
+extern void isr20(void);
+extern void isr21(void);
+extern void isr22(void);
+extern void isr23(void);
+extern void isr24(void);
+extern void isr25(void);
+extern void isr26(void);
+extern void isr27(void);
+extern void isr28(void);
+extern void isr29(void);
+extern void isr30(void);
+extern void isr31(void);
 
 #endif // ISR_H
