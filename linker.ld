@@ -3,7 +3,7 @@ OUTPUT_FORMAT(elf32-i386)
 OUTPUT_ARCH(i386)
 
 SECTIONS {
-    . = 0x1000;
+    . = 0x1000;    /* Match KERNEL_OFFSET from bootloader */
     
     .text BLOCK(4K) : ALIGN(4K) {
         *(.text)

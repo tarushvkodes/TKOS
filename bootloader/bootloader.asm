@@ -6,6 +6,36 @@ ORG 0x7C00
 KERNEL_OFFSET equ 0x1000
 KERNEL_SECTORS equ 32      ; Number of sectors to load
 
+; GDT
+gdt_start:
+    ; Null descriptor
+    dd 0x0
+    dd 0x0
+    
+    ; Code segment
+    dw 0xffff    ; Limit
+    dw 0x0       ; Base
+    db 0x0       ; Base
+    db 10011010b ; Access
+    db 11001111b ; Flags + Limit
+    db 0x0       ; Base
+    
+    ; Data segment
+    dw 0xffff    ; Limit
+    dw 0x0       ; Base
+    db 0x0       ; Base
+    db 10010010b ; Access
+    db 11001111b ; Flags + Limit
+    db 0x0       ; Base
+gdt_end:
+
+gdt_descriptor:
+    dw gdt_end - gdt_start - 1 ; Size
+    dd gdt_start               ; Start address
+
+CODE_SEG equ 0x08
+DATA_SEG equ 0x10
+
 start:
     ; Save boot drive number
     mov [boot_drive], dl
@@ -51,12 +81,8 @@ load_kernel:
     mov si, msg_kernel_loaded
     call print_string
 
-    ; Disable interrupts before switching to protected mode
+    ; Switch to protected mode
     cli
-
-    ; Load GDT
-    mov si, msg_loading_gdt
-    call print_string
     lgdt [gdt_descriptor]
     
     ; Enable A20 line
@@ -64,101 +90,57 @@ load_kernel:
     or al, 2
     out 0x92, al
 
-    mov si, msg_switching_pm
-    call print_string
-
     ; Switch to protected mode
     mov eax, cr0
-    or al, 1
+    or eax, 1
     mov cr0, eax
     
-    ; Flush CPU pipeline with far jump
-    jmp CODE_SEG:init_pm
+    ; Far jump to flush pipeline and load CS
+    jmp CODE_SEG:protected_mode
 
-disk_error:
-    mov si, msg_disk_error
-    call print_string
-    jmp hang
-
-[BITS 32]
-init_pm:
+BITS 32
+protected_mode:
     ; Set up segment registers
     mov ax, DATA_SEG
     mov ds, ax
+    mov ss, ax
     mov es, ax
     mov fs, ax
     mov gs, ax
-    mov ss, ax
-    
-    ; Set up stack
-    mov esp, 0x90000
 
-    ; Clear direction flag
-    cld
+    ; Set up stack
+    mov ebp, 0x90000
+    mov esp, ebp
 
     ; Jump to kernel
-    jmp CODE_SEG:KERNEL_OFFSET
+    jmp KERNEL_OFFSET
 
-; Real mode functions
-[BITS 16]
+; Error handlers and utility functions
+disk_error:
+    mov si, msg_disk_error
+    call print_string
+    jmp $
+
 print_string:
     pusha
-    mov ah, 0x0E
-.next_char:
-    lodsb
-    test al, al        ; Check for null terminator
-    jz .done
-    int 0x10
-    jmp .next_char
+    mov ah, 0x0e    ; BIOS teletype function
+.repeat:
+    lodsb           ; Load byte from SI into AL
+    test al, al     ; Check if character is null
+    jz .done        ; If yes, we're done
+    int 0x10        ; Print character
+    jmp .repeat     ; Repeat for next character
 .done:
     popa
     ret
 
-hang:
-    cli                ; Disable interrupts
-    hlt               ; Halt the CPU
-    jmp hang          ; In case of NMI
-
 ; Data
-align 4
-msg_booting db 'Booting TKOS...', 13, 10, 0
-msg_loading_kernel db 'Loading kernel...', 13, 10, 0
-msg_kernel_loaded db 'Kernel loaded successfully!', 13, 10, 0
-msg_loading_gdt db 'Loading GDT...', 13, 10, 0
-msg_switching_pm db 'Switching to protected mode...', 13, 10, 0
-msg_disk_error db 'Disk error! System halted.', 13, 10, 0
-boot_drive db 0
+boot_drive: db 0
+msg_booting: db "Booting TKOS...", 13, 10, 0
+msg_loading_kernel: db "Loading kernel...", 13, 10, 0
+msg_kernel_loaded: db "Kernel loaded.", 13, 10, 0
+msg_disk_error: db "Disk error!", 13, 10, 0
 
-; GDT
-align 8
-gdt_start:
-    ; Null descriptor
-    dq 0
-    
-    ; Code segment descriptor
-    dw 0xFFFF    ; Limit (0-15)
-    dw 0x0000    ; Base (0-15)
-    db 0x00      ; Base (16-23)
-    db 10011010b ; Access byte - Code
-    db 11001111b ; Flags + Limit (16-19)
-    db 0x00      ; Base (24-31)
-    
-    ; Data segment descriptor
-    dw 0xFFFF    ; Limit (0-15)
-    dw 0x0000    ; Base (0-15)
-    db 0x00      ; Base (16-23)
-    db 10010010b ; Access byte - Data
-    db 11001111b ; Flags + Limit (16-19)
-    db 0x00      ; Base (24-31)
-gdt_end:
-
-gdt_descriptor:
-    dw gdt_end - gdt_start - 1  ; GDT size
-    dd gdt_start                ; GDT address
-
-CODE_SEG equ 8    ; Offset in GDT
-DATA_SEG equ 16   ; Offset in GDT
-
-; Padding and magic number
-times 510-($-$$) db 0
-dw 0xAA55
+; Padding and boot signature
+times 510 - ($ - $$) db 0
+dw 0xaa55
